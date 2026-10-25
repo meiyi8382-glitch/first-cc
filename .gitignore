@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.claude/
+pomodoro_stats.json
+pomodoro_prefs.json
