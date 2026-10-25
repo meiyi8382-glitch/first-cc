@@ -44,21 +44,21 @@ DEFAULT_PREFS = {
 PHASES = ("work", "short_break", "long_break")
 
 PHASE_META = {
-    "work": {"label": "专注", "color": "#e63946"},
-    "short_break": {"label": "短休息", "color": "#ff6b6b"},
-    "long_break": {"label": "长休息", "color": "#c1121f"},
+    "work": {"label": "专注", "stamp": "WORK"},
+    "short_break": {"label": "短休息", "stamp": "REST"},
+    "long_break": {"label": "长休息", "stamp": "LONG REST"},
 }
 
-# 红白配色
-BG = "#ffffff"
-TEXT = "#1f1f1f"
-MUTED = "#9aa0a6"
-ACCENT = "#e63946"
-ACCENT_DARK = "#c62828"
-ACCENT_TINT = "#fdecec"
-RING_BG = "#f1f3f4"
-DOT_BG = "#e3e6e8"
-BORDER = "#f0b8b8"
+# 复古文具配色：纸张底色 + 钢笔墨色
+BG = "#f2e8d5"
+PAPER = "#ece0c7"
+TEXT = "#3a2e1f"
+MUTED = "#9c8b6f"
+ACCENT = "#8b2e2e"
+ACCENT_DARK = "#6e2222"
+ACCENT_TINT = "#e6d4c3"
+BORDER = "#c4a572"
+CELL_EMPTY = "#ddd0b4"
 
 
 def enable_dpi_awareness():
@@ -176,87 +176,107 @@ class PomodoroApp:
 
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        tk.Frame(self.root, bg=ACCENT, height=4).pack(fill="x", side="top")
+        header = tk.Frame(self.root, bg=BG, highlightthickness=2, highlightbackground=TEXT)
+        header.pack(fill="x", padx=28, pady=(24, 0))
+        tk.Label(
+            header, text="POMODORO LOG", bg=BG, fg=TEXT,
+            font=("Georgia", 13, "bold"),
+        ).pack(side="left", padx=14, pady=8)
+        self.date_label = tk.Label(
+            header, text=datetime.date.today().strftime("%Y.%m.%d"),
+            bg=BG, fg=MUTED, font=("Consolas", 11),
+        )
+        self.date_label.pack(side="right", padx=14, pady=8)
 
-        self.phase_label = tk.Label(self.root, text="", bg=BG, fg=ACCENT, font=("Segoe UI", 22, "bold"))
-        self.phase_label.pack(pady=(28, 0))
+        self.phase_stamp = tk.Label(
+            self.root, text="", bg=BG, fg=ACCENT,
+            font=("Georgia", 15, "bold"), highlightthickness=2,
+            highlightbackground=ACCENT,
+        )
+        self.phase_stamp.pack(pady=(22, 4), ipadx=16, ipady=4)
 
-        self.cycle_label = tk.Label(self.root, text="", bg=BG, fg=MUTED, font=("Segoe UI", 12))
-        self.cycle_label.pack(pady=(6, 10))
+        self.cycle_label = tk.Label(self.root, text="", bg=BG, fg=MUTED, font=("Georgia", 11, "italic"))
+        self.cycle_label.pack(pady=(2, 14))
 
         task_frame = tk.Frame(self.root, bg=BG)
-        task_frame.pack(pady=(0, 6))
+        task_frame.pack(pady=(0, 10))
         self.task_var = tk.StringVar(value="")
-        tk.Label(task_frame, text="任务：", bg=BG, fg=MUTED, font=("Segoe UI", 11)).pack(side="left")
+        tk.Label(task_frame, text="task —", bg=BG, fg=MUTED, font=("Georgia", 11, "italic")).pack(side="left")
         self.task_entry = tk.Entry(
-            task_frame, textvariable=self.task_var, width=24, justify="center",
-            bg="#fafafa", fg=TEXT, insertbackground=ACCENT,
-            relief="flat", highlightthickness=1,
-            highlightbackground=BORDER, highlightcolor=ACCENT,
-            font=("Segoe UI", 11),
+            task_frame, textvariable=self.task_var, width=26, justify="left",
+            bg=BG, fg=TEXT, insertbackground=ACCENT,
+            relief="flat", highlightthickness=0,
+            bd=0, font=("Georgia", 11),
         )
-        self.task_entry.pack(side="left")
+        self.task_entry.pack(side="left", padx=(6, 0))
+        tk.Frame(task_frame, bg=TEXT, height=1, width=170).place(in_=self.task_entry, relx=0, rely=1.0, y=2)
 
-        self.canvas = tk.Canvas(self.root, width=460, height=460, bg=BG, highlightthickness=0)
-        self.canvas.pack(pady=8)
-        self.canvas.bind("<Configure>", lambda e: self._render())
+        time_frame = tk.Frame(self.root, bg=PAPER, highlightthickness=2, highlightbackground=BORDER)
+        time_frame.pack(pady=10, padx=60, fill="x")
+        self.time_label = tk.Label(
+            time_frame, text="", bg=PAPER, fg=TEXT, font=("Consolas", 64, "bold"),
+        )
+        self.time_label.pack(pady=18)
 
-        self.time_text = self.canvas.create_text(230, 230, text="", fill=TEXT, font=("Consolas", -88, "bold"))
+        self.progress_canvas = tk.Canvas(self.root, height=28, bg=BG, highlightthickness=0)
+        self.progress_canvas.pack(pady=(14, 4), padx=60, fill="x")
+        self.progress_canvas.bind("<Configure>", lambda e: self._render())
 
         self.dots_frame = tk.Frame(self.root, bg=BG)
-        self.dots_frame.pack(pady=6)
+        self.dots_frame.pack(pady=(4, 6))
         self.dots = []
 
         buttons = tk.Frame(self.root, bg=BG)
-        buttons.pack(pady=22)
+        buttons.pack(pady=24)
 
         self.start_btn = tk.Button(
-            buttons, text="开始", command=self.toggle, width=10,
-            bg=ACCENT, fg="white", activebackground=ACCENT_DARK, activeforeground="white",
-            relief="flat", bd=0, cursor="hand2", font=("Segoe UI", 13, "bold"), padx=10, pady=10,
+            buttons, text="START", command=self.toggle, width=10,
+            bg=ACCENT, fg=BG, activebackground=ACCENT_DARK, activeforeground=BG,
+            relief="flat", bd=0, cursor="hand2", font=("Georgia", 13, "bold"), padx=10, pady=10,
+            highlightthickness=2, highlightbackground=TEXT,
         )
         self.start_btn.grid(row=0, column=0, padx=6)
 
         self.skip_btn = tk.Button(
-            buttons, text="跳过", command=self.skip, width=7,
-            bg=BG, fg=ACCENT, activebackground=ACCENT_TINT, activeforeground=ACCENT,
-            relief="flat", bd=0, cursor="hand2", highlightthickness=1,
-            highlightbackground=BORDER, highlightcolor=ACCENT,
-            font=("Segoe UI", 12), padx=10, pady=10,
+            buttons, text="skip", command=self.skip, width=7,
+            bg=BG, fg=TEXT, activebackground=ACCENT_TINT, activeforeground=TEXT,
+            relief="flat", bd=0, cursor="hand2", highlightthickness=2,
+            highlightbackground=TEXT,
+            font=("Georgia", 12), padx=10, pady=10,
         )
         self.skip_btn.grid(row=0, column=1, padx=6)
 
         self.reset_btn = tk.Button(
-            buttons, text="重置", command=self.reset, width=7,
-            bg=BG, fg=ACCENT, activebackground=ACCENT_TINT, activeforeground=ACCENT,
-            relief="flat", bd=0, cursor="hand2", highlightthickness=1,
-            highlightbackground=BORDER, highlightcolor=ACCENT,
-            font=("Segoe UI", 12), padx=10, pady=10,
+            buttons, text="reset", command=self.reset, width=7,
+            bg=BG, fg=TEXT, activebackground=ACCENT_TINT, activeforeground=TEXT,
+            relief="flat", bd=0, cursor="hand2", highlightthickness=2,
+            highlightbackground=TEXT,
+            font=("Georgia", 12), padx=10, pady=10,
         )
         self.reset_btn.grid(row=0, column=2, padx=6)
 
         bottom_frame = tk.Frame(self.root, bg=BG)
-        bottom_frame.pack(pady=(0, 22))
+        bottom_frame.pack(pady=(0, 24))
 
         self.settings_btn = tk.Button(
-            bottom_frame, text="设置", command=self.open_settings,
+            bottom_frame, text="settings", command=self.open_settings,
             bg=BG, fg=MUTED, activebackground=BG, activeforeground=ACCENT,
-            relief="flat", bd=0, cursor="hand2", font=("Segoe UI", 10),
+            relief="flat", bd=0, cursor="hand2", font=("Georgia", 10, "italic"),
         )
         self.settings_btn.pack(side="left", padx=10)
 
         self.stats_btn = tk.Button(
-            bottom_frame, text="统计", command=self.open_stats,
+            bottom_frame, text="log book", command=self.open_stats,
             bg=BG, fg=MUTED, activebackground=BG, activeforeground=ACCENT,
-            relief="flat", bd=0, cursor="hand2", font=("Segoe UI", 10),
+            relief="flat", bd=0, cursor="hand2", font=("Georgia", 10, "italic"),
         )
         self.stats_btn.pack(side="left", padx=10)
 
         self.topmost_var = tk.BooleanVar(value=self.prefs["always_on_top"])
         self.topmost_check = tk.Checkbutton(
-            bottom_frame, text="窗口置顶", variable=self.topmost_var, command=self.toggle_topmost,
+            bottom_frame, text="pin on top", variable=self.topmost_var, command=self.toggle_topmost,
             bg=BG, fg=MUTED, activebackground=BG, activeforeground=ACCENT,
-            selectcolor=BG, relief="flat", bd=0, cursor="hand2", font=("Segoe UI", 10),
+            selectcolor=BG, relief="flat", bd=0, cursor="hand2", font=("Georgia", 10, "italic"),
         )
         self.topmost_check.pack(side="left", padx=10)
 
@@ -353,47 +373,42 @@ class PomodoroApp:
     # ---- rendering ----
     def _render(self):
         meta = PHASE_META[self.phase]
-        color = meta["color"]
 
-        self.phase_label.config(text=meta["label"], fg=color)
+        self.phase_stamp.config(text=f"[ {meta['stamp']} ]")
 
         sessions = int(self.cfg["sessions_before_long_break"])
-        self.cycle_label.config(text=f"本轮已完成 {self.completed_in_cycle} / {sessions} 个番茄")
+        self.cycle_label.config(text=f"cycle {self.completed_in_cycle} / {sessions}")
 
-        self.start_btn.config(text="暂停" if self.running else "开始")
+        self.start_btn.config(text="PAUSE" if self.running else "START")
 
-        self._render_ring(color)
-        self._render_dots(color)
+        self._render_progress()
+        self._render_cells()
         self._render_time()
 
-    def _render_ring(self, color):
-        c = self.canvas
-        c.delete("ring")
-        w = self.canvas.winfo_width()
-        h = self.canvas.winfo_height()
-        if w <= 1 or h <= 1:
-            w, h = 460, 460
-        size = min(w, h)
-        pad = 26
-        box = (pad, pad, size - pad, size - pad)
-        cx, cy = size / 2, size / 2
-        c.coords(self.time_text, cx, cy - 16)
+    def _render_progress(self):
+        c = self.progress_canvas
+        c.delete("bar")
+        w = c.winfo_width()
+        h = c.winfo_height()
+        if w <= 1:
+            w, h = 440, 28
+        c.create_rectangle(0, 0, w, h, outline=TEXT, width=2, tags="bar")
 
-        c.create_oval(*box, outline=RING_BG, width=18, tags="ring")
-
-        frac = self.remaining / self.total_seconds() if self.total_seconds() else 0
-        if frac > 0:
-            c.create_arc(
-                *box, start=90, extent=-360 * frac,
-                style="arc", outline=color, width=18, tags="ring",
-            )
+        frac = 1 - (self.remaining / self.total_seconds() if self.total_seconds() else 0)
+        notch_count = 20
+        notch_w = w / notch_count
+        filled_notches = int(round(frac * notch_count))
+        for i in range(filled_notches):
+            x0 = i * notch_w + 2
+            x1 = (i + 1) * notch_w - 2
+            c.create_rectangle(x0, 2, x1, h - 2, fill=ACCENT, outline="", tags="bar")
 
     def _render_time(self):
         total = int(round(self.remaining))
         mm, ss = divmod(total, 60)
-        self.canvas.itemconfig(self.time_text, text=f"{mm:02d}:{ss:02d}")
+        self.time_label.config(text=f"{mm:02d}:{ss:02d}")
 
-    def _render_dots(self, color):
+    def _render_cells(self):
         for dot in self.dots:
             dot.destroy()
         self.dots = []
@@ -403,12 +418,13 @@ class PomodoroApp:
                 filled = i < self.completed_in_cycle
             else:
                 filled = i < (self.completed_in_cycle % sessions)
-            dot = tk.Label(
-                self.dots_frame, text="●", bg=BG,
-                fg=color if filled else DOT_BG, font=("Segoe UI", 14),
+            cell = tk.Label(
+                self.dots_frame, text=" ", width=2, height=1,
+                bg=ACCENT if filled else CELL_EMPTY,
+                highlightthickness=1, highlightbackground=TEXT,
             )
-            dot.pack(side="left", padx=4)
-            self.dots.append(dot)
+            cell.pack(side="left", padx=3)
+            self.dots.append(cell)
 
     # ---- dialogs ----
     def _make_dialog(self, title):
@@ -422,10 +438,10 @@ class PomodoroApp:
 
     def _close_button(self, parent, win):
         return tk.Button(
-            parent, text="关闭", command=win.destroy,
+            parent, text="close", command=win.destroy,
             bg=BG, fg=MUTED, activebackground=BG, activeforeground=TEXT,
-            relief="flat", bd=0, cursor="hand2", highlightthickness=1,
-            highlightbackground=BORDER, font=("Segoe UI", 11), padx=16, pady=7,
+            relief="flat", bd=0, cursor="hand2", highlightthickness=2,
+            highlightbackground=TEXT, font=("Georgia", 11, "italic"), padx=16, pady=7,
         )
 
     # ---- settings ----
@@ -440,15 +456,15 @@ class PomodoroApp:
         ]
         entries = {}
         for i, (label, key) in enumerate(fields):
-            tk.Label(win, text=label, bg=BG, fg=TEXT, font=("Segoe UI", 11)).grid(
+            tk.Label(win, text=label, bg=BG, fg=TEXT, font=("Georgia", 11)).grid(
                 row=i, column=0, sticky="w", padx=16, pady=9
             )
             var = tk.StringVar(value=str(self.cfg[key]))
             e = tk.Entry(win, textvariable=var, width=8, justify="center",
-                         bg="#fafafa", fg=TEXT, insertbackground=ACCENT,
-                         relief="flat", highlightthickness=1,
+                         bg=PAPER, fg=TEXT, insertbackground=ACCENT,
+                         relief="flat", highlightthickness=2,
                          highlightbackground=BORDER, highlightcolor=ACCENT,
-                         font=("Segoe UI", 11))
+                         font=("Consolas", 11))
             e.grid(row=i, column=1, padx=16, pady=9)
             entries[key] = var
 
@@ -472,9 +488,10 @@ class PomodoroApp:
         btn_frame = tk.Frame(win, bg=BG)
         btn_frame.grid(row=len(fields), column=0, columnspan=2, pady=16)
         self._close_button(btn_frame, win).pack(side="left", padx=8)
-        tk.Button(btn_frame, text="保存", command=save,
-                  bg=ACCENT, fg="white", activebackground=ACCENT_DARK, activeforeground="white",
-                  relief="flat", bd=0, cursor="hand2", font=("Segoe UI", 11, "bold"), padx=16, pady=7).pack(side="left", padx=8)
+        tk.Button(btn_frame, text="save", command=save,
+                  bg=ACCENT, fg=BG, activebackground=ACCENT_DARK, activeforeground=BG,
+                  relief="flat", bd=0, cursor="hand2", highlightthickness=2, highlightbackground=TEXT,
+                  font=("Georgia", 11, "bold"), padx=16, pady=7).pack(side="left", padx=8)
 
     def open_stats(self):
         win = self._make_dialog("统计")
@@ -484,11 +501,11 @@ class PomodoroApp:
 
         tk.Label(
             win, text=f"今日完成番茄数：{today_data['count']}",
-            bg=BG, fg=TEXT, font=("Segoe UI", 12, "bold"),
+            bg=BG, fg=TEXT, font=("Georgia", 12, "bold"),
         ).pack(anchor="w", padx=16, pady=(16, 4))
         tk.Label(
             win, text=f"今日累计专注：{today_data['minutes']} 分钟",
-            bg=BG, fg=TEXT, font=("Segoe UI", 12, "bold"),
+            bg=BG, fg=TEXT, font=("Georgia", 12, "bold"),
         ).pack(anchor="w", padx=16, pady=(0, 10))
 
         total_count = total_minutes = 0
@@ -497,21 +514,21 @@ class PomodoroApp:
             total_minutes += d["minutes"]
         tk.Label(
             win, text=f"历史总计：{total_count} 个番茄 / {total_minutes} 分钟",
-            bg=BG, fg=MUTED, font=("Segoe UI", 10),
+            bg=BG, fg=MUTED, font=("Georgia", 10, "italic"),
         ).pack(anchor="w", padx=16, pady=(0, 10))
 
         list_frame = tk.Frame(win, bg=BG)
         list_frame.pack(padx=16, pady=(0, 16), fill="both")
-        tk.Label(list_frame, text="今日任务记录", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w")
+        tk.Label(list_frame, text="今日任务记录", bg=BG, fg=MUTED, font=("Georgia", 10, "italic")).pack(anchor="w")
 
         tasks = today_data.get("tasks", [])
         if not tasks:
-            tk.Label(list_frame, text="（暂无记录）", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w", pady=4)
+            tk.Label(list_frame, text="（暂无记录）", bg=BG, fg=MUTED, font=("Georgia", 10, "italic")).pack(anchor="w", pady=4)
         else:
             for t in tasks:
                 tk.Label(
                     list_frame, text=f"· {t['name']}  —  {t['minutes']} 分钟",
-                    bg=BG, fg=TEXT, font=("Segoe UI", 10),
+                    bg=BG, fg=TEXT, font=("Georgia", 10),
                 ).pack(anchor="w", pady=2)
 
         self._close_button(win, win).pack(pady=(0, 16))
